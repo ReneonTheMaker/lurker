@@ -29,7 +29,6 @@ type Character struct {
 	BaseIntelligence int
 	Experience       int
 	NextLevelExp     int
-	Gold             int
 }
 
 func NewCharacter() Character {
@@ -49,6 +48,5 @@ func NewCharacter() Character {
 		BaseIntelligence: 5,
 		Experience:       0,
 		NextLevelExp:     100,
-		Gold:             0,
 	}
 }
