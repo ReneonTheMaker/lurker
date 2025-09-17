@@ -40,7 +40,9 @@ type Player struct {
 	Collisions           [][]bool
 	stepSound            rl.Sound
 	voiceSound           []rl.Sound
+	gameFlags            map[string]bool
 	message              string
+	steps                int
 	Character
 }
 
@@ -87,6 +89,11 @@ func NewPlayer(portraitPath string, startingPosition rl.Vector3, direction int) 
 			rl.LoadSound("./src/sfx/voice2.wav"),
 			rl.LoadSound("./src/sfx/voice3.wav"),
 		},
+		gameFlags: map[string]bool{
+			"opening_mumble":   false,
+			"opening_mumble_2": false,
+			"tired":            false,
+		},
 	}
 }
 
@@ -99,7 +106,7 @@ func (p *Player) Moan(seconds float32, message string) {
 	for time.Now().Before(endTime) {
 		randIndex := rand.Intn(len(p.voiceSound))
 		rl.PlaySound(p.voiceSound[randIndex])
-		time.Sleep(350 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 	p.message = ""
 }
@@ -125,6 +132,7 @@ func (p *Player) SetCollisions(image *rl.Image) {
 }
 
 func (p *Player) processNextMove() {
+	p.steps++
 	moveOffset := rl.NewVector3(0, 0, 0)
 	switch p.PlayerRotation {
 	case NORTH:
@@ -249,6 +257,7 @@ func (p *Player) Update() {
 
 	if changed {
 		p.processNextMove()
+		p.processFlags()
 		if !p.CanMoveTo(p.PlayerPos) {
 			// valid move
 			p.PlayerPos = p.PreviousPlayerPos
@@ -268,6 +277,28 @@ func (p *Player) Update() {
 		// debug can move to
 	}
 	changed = false
+}
+
+func (p *Player) processFlags() {
+	// Example flag processing
+	if p.gameFlags == nil {
+		return
+	}
+	switch {
+	case !p.gameFlags["opening_mumble"]:
+		if p.PlayerPos.X == 2 && p.PlayerPos.Z == 1 {
+			p.gameFlags["opening_mumble"] = true
+			go p.Moan(1.0, "Philo...")
+		}
+	case !p.gameFlags["opening_mumble_2"]:
+		if p.PlayerPos.X == 3 && p.PlayerPos.Z == 2 {
+			p.gameFlags["opening_mumble_2"] = true
+			go p.Moan(1.0, "Where are you?")
+		}
+	case !p.gameFlags["tired"] && p.steps > 20:
+		p.gameFlags["tired"] = true
+		go p.Moan(2.0, "I'm so tired...")
+	}
 }
 
 func (p *Player) GetPlayerPosString() string {

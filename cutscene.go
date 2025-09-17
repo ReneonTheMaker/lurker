@@ -42,7 +42,7 @@ func newCutscene() *Cutscene {
 }
 
 func (c *Cutscene) Update() {
-	if rl.IsKeyPressed(rl.KeyEnter) && c.started {
+	if rl.IsKeyPressed(rl.KeyEnter) {
 		c.IsFinished = true
 		return
 	}

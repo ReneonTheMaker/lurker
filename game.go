@@ -23,67 +23,78 @@ const (
 )
 
 type Game struct {
-	State         int
-	Player        *Player
-	Models        map[string]rl.Model
-	DungeonImages map[string]*rl.Image
-	uiTextures    map[string]rl.Texture2D
-	uiFonts       map[string]rl.Font
-	rt            rl.RenderTexture2D
-	mainMenu      mainMenu
-	currentMusic  rl.Music
-	cutscene      *Cutscene
+	State          int
+	Player         *Player
+	Models         map[string]rl.Model
+	DungeonImages  map[string]*rl.Image
+	uiTextures     map[string]rl.Texture2D
+	uiFonts        map[string]rl.Font
+	rt             rl.RenderTexture2D
+	mainMenu       mainMenu
+	Music          map[string]rl.Music
+	cutscene       *Cutscene
+	transitionTime float32
+	currentMusic   rl.Music
+	stateChange    bool
 }
 
 func NewGame() *Game {
 
 	rt := rl.LoadRenderTexture(RenderWidth, RenderHeight)
+
+	// Initialize maps
 	models := make(map[string]rl.Model)
 	uiTextures := make(map[string]rl.Texture2D)
 	DungeonImages := make(map[string]*rl.Image)
-	music := rl.LoadMusicStream("./src/music/lurkertheme.ogg")
+	music := make(map[string]rl.Music)
 	uiFonts := make(map[string]rl.Font)
 
-	// load dungeon model
+	// Load dungeon image and model
 	dungeonImage := rl.LoadImage("./src/levels/dungeon_1.png")
 	DungeonImages["dungeon_1"] = dungeonImage
-
-	// load the mark of forma
-	markOfFormaImage := rl.LoadImage("./src/forma.png")
-	defer rl.UnloadImage(markOfFormaImage)
-	uiTextures["mark_of_forma"] = rl.LoadTextureFromImage(markOfFormaImage)
-
-	paperImage := rl.LoadImage("./src/ui/wood background.png")
-	defer rl.UnloadImage(paperImage)
-
 	dungeonMesh := rl.GenMeshCubicmap(*dungeonImage, rl.NewVector3(5, 5, 5))
 	dungeonTexture := rl.LoadTexture("./src/tiles/dungeon_tileset.png")
 	dungeonModel := rl.LoadModelFromMesh(dungeonMesh)
 	rl.SetMaterialTexture(dungeonModel.Materials, rl.MapDiffuse, dungeonTexture)
+	models["dungeon"] = dungeonModel
 
+	// Load UI textures
+	paperImage := rl.LoadImage("./src/ui/wood background.png")
+	defer rl.UnloadImage(paperImage)
 	paperTexture := rl.LoadTextureFromImage(paperImage)
 	uiTextures["paper"] = paperTexture
 	rl.SetTextureWrap(paperTexture, rl.TextureWrapRepeat)
 
+	markOfFormaImage := rl.LoadImage("./src/forma.png")
+	defer rl.UnloadImage(markOfFormaImage)
+	uiTextures["mark_of_forma"] = rl.LoadTextureFromImage(markOfFormaImage)
+
+	// Load fonts
 	uiFonts["title"] = rl.LoadFont("src/fonts/PistonBlack-Regular.ttf")
 
-	models["dungeon"] = dungeonModel
+	// Load music
+	music["theme"] = rl.LoadMusicStream("./src/music/beyond_redemption_master.mp3")
+	dungeonMusic := rl.LoadMusicStream("./src/music/lurkertheme.ogg")
+	dungeonMusic.Looping = true
+	music["dungeon_1"] = dungeonMusic
 
 	g := Game{
-		State:         STATE_DUNGEON,
+		State:         STATE_MAIN_MENU,
 		Models:        models,
 		Player:        NewPlayer("./src/ui/nerd.png", rl.NewVector3(1, 2, 1), EAST),
 		uiTextures:    uiTextures,
 		rt:            rt,
 		DungeonImages: DungeonImages,
-		currentMusic:  music,
+		Music:         music,
 		mainMenu:      *newMainMenu(),
 		uiFonts:       uiFonts,
 		cutscene:      newCutscene(),
 	}
 
-	g.currentMusic.Looping = true
-	rl.SetMusicVolume(g.currentMusic, 1.0)
+	for _, m := range g.Music {
+		rl.SetMusicVolume(m, 0.2)
+	}
+	g.currentMusic = g.Music["theme"]
 	rl.PlayMusicStream(g.currentMusic)
 	g.Player.SetCollisions(g.DungeonImages["dungeon_1"])
 
@@ -100,7 +111,41 @@ func (g *Game) Unload() {
 	rl.UnloadRenderTexture(g.rt)
 }
 
+func (g *Game) handleStateChange() {
+	switch g.State {
+	case STATE_DUNGEON:
+		if g.currentMusic != g.Music["dungeon_1"] {
+			rl.StopMusicStream(g.currentMusic)
+			g.currentMusic = g.Music["dungeon_1"]
+			rl.PlayMusicStream(g.currentMusic)
+		}
+	case STATE_MAIN_MENU:
+		if g.currentMusic != g.Music["theme"] {
+			rl.StopMusicStream(g.currentMusic)
+			g.currentMusic = g.Music["theme"]
+			rl.PlayMusicStream(g.currentMusic)
+		}
+	case STATE_OPENING_CUTSCENE:
+		if g.currentMusic != g.Music["theme"] {
+			rl.StopMusicStream(g.currentMusic)
+			g.currentMusic = g.Music["theme"]
+			rl.PlayMusicStream(g.currentMusic)
+		}
+	case STATE_COMBAT:
+	case STATE_INVENTORY:
+	case STATE_CHARACTER_SCREEN:
+	case STATE_GAME_OVER:
+	case STATE_VICTORY:
+	}
+}
+
 func (g *Game) Update() {
+
+	if g.stateChange {
+		g.handleStateChange()
+		g.stateChange = false
+	}
+
 	rl.UpdateMusicStream(g.currentMusic)
 	switch g.State {
 	case STATE_DUNGEON:
@@ -108,11 +153,13 @@ func (g *Game) Update() {
 	case STATE_MAIN_MENU:
 		if g.mainMenu.MoveOn {
 			g.State = STATE_OPENING_CUTSCENE
+			g.stateChange = true
 		}
 		g.mainMenu.Update()
 	case STATE_OPENING_CUTSCENE:
 		if g.cutscene.IsFinished {
 			g.State = STATE_DUNGEON
+			g.stateChange = true
 		}
 		g.cutscene.Update()
 	}
@@ -130,13 +177,12 @@ func (g *Game) DrawUI() {
 	switch g.State {
 	case STATE_DUNGEON:
 		// paper background
-		rl.DrawTexturePro(
-			g.uiTextures["paper"],
-			rl.NewRectangle(0, 0, float32(g.uiTextures["paper"].Width)*4, float32(g.uiTextures["paper"].Height)*4),
-			rl.NewRectangle(0, float32(RenderHeight)-72, float32(RenderWidth), 72),
-			rl.NewVector2(0, 0),
-			0.0,
-			rl.White,
+		rl.DrawRectangle(
+			0,
+			RenderHeight-72,
+			RenderWidth,
+			72,
+			rl.Black,
 		)
 		// portrait
 		rl.DrawTexturePro(
