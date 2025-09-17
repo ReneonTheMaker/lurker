@@ -43,6 +43,8 @@ type Player struct {
 	gameFlags            map[string]bool
 	message              string
 	steps                int
+	sanitySteps          int
+	sanityMessages       []string
 	Character
 }
 
@@ -81,6 +83,7 @@ func NewPlayer(portraitPath string, startingPosition rl.Vector3, direction int) 
 		timeToMove:        0.25,
 		Portrait:          portrait,
 		moving:            false,
+		sanitySteps:       50,
 		nextMove:          -1,
 		Character:         NewCharacter(),
 		stepSound:         rl.LoadSound("./src/sfx/step.wav"),
@@ -94,7 +97,28 @@ func NewPlayer(portraitPath string, startingPosition rl.Vector3, direction int) 
 			"opening_mumble_2": false,
 			"tired":            false,
 		},
+		sanityMessages: []string{
+			"Philo...",
+			"Where are you?",
+			"She's obsessed with me...",
+			"I can't take this anymore...",
+			"I'm so tired...",
+			"Why can't I remember?",
+			"Is this real?",
+			"Am I dreaming?",
+			"I'm dreaming again...",
+			"Cupid is a bastard...",
+			"Just let me sleep...",
+		},
 	}
+}
+
+func (p *Player) getRandomSanityMessage() string {
+	if len(p.sanityMessages) == 0 {
+		return ""
+	}
+	randIndex := rand.Intn(len(p.sanityMessages))
+	return p.sanityMessages[randIndex]
 }
 
 func (p *Player) Moan(seconds float32, message string) {
@@ -133,6 +157,18 @@ func (p *Player) SetCollisions(image *rl.Image) {
 
 func (p *Player) processNextMove() {
 	p.steps++
+	p.sanitySteps--
+	if p.sanitySteps <= 0 {
+		p.sanitySteps = 250
+		go p.Moan(1.0, p.getRandomSanityMessage())
+		if p.CurrentSp >= 20 {
+			p.CurrentSp -= 3
+		} else {
+			p.Character.CurrentSp--
+		}
+		p.Character.Experience += 5
+		p.checkLevelUp()
+	}
 	moveOffset := rl.NewVector3(0, 0, 0)
 	switch p.PlayerRotation {
 	case NORTH:
@@ -318,4 +354,17 @@ func (p *Player) CanMoveTo(newPos rl.Vector3) bool {
 	}
 
 	return !p.Collisions[z][x]
+}
+
+func (p *Player) checkLevelUp() {
+	for p.Character.Experience >= p.Character.NextLevelExp && p.Character.Level < len(xpTable) {
+		p.Character.Experience = p.Character.Experience - p.Character.NextLevelExp
+		p.Character.Level++
+		p.Character.BaseMaxHp += rand.Intn(6) + 5    // Increase max HP by 5-10
+		p.Character.BaseStrength += rand.Intn(2) + 1 // Increase strength by 1-2
+		p.Character.BaseSpeed += rand.Intn(2) + 1
+		p.Character.BaseIntelligence += rand.Intn(2) + 1
+		p.Character.NextLevelExp = xpTable[p.Character.Level-1]
+		p.Character.CurrentSp++
+	}
 }
