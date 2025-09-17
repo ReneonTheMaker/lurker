@@ -167,7 +167,7 @@ func (p *Player) processNextMove() {
 			p.Character.CurrentSp--
 		}
 		p.Character.Experience += 5
-		p.checkLevelUp()
+		p.checkLevelUpAndAction()
 	}
 	moveOffset := rl.NewVector3(0, 0, 0)
 	switch p.PlayerRotation {
@@ -356,7 +356,7 @@ func (p *Player) CanMoveTo(newPos rl.Vector3) bool {
 	return !p.Collisions[z][x]
 }
 
-func (p *Player) checkLevelUp() {
+func (p *Player) checkLevelUpAndAction() {
 	for p.Character.Experience >= p.Character.NextLevelExp && p.Character.Level < len(xpTable) {
 		p.Character.Experience = p.Character.Experience - p.Character.NextLevelExp
 		p.Character.Level++
