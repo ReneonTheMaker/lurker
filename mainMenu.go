@@ -33,6 +33,7 @@ func newMainMenu() *mainMenu {
 	}
 }
 
+// this is a piece of shit and needs refactoring
 func (m *mainMenu) Update() {
 	if m.animating {
 		if m.timeToWait <= 0 {
