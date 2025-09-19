@@ -24,6 +24,8 @@ const (
 
 type Game struct {
 	State          int
+	stateChange    bool
+	transitionTime float32
 	Player         *Player
 	Models         map[string]rl.Model
 	DungeonImages  map[string]*rl.Image
@@ -31,11 +33,10 @@ type Game struct {
 	uiFonts        map[string]rl.Font
 	rt             rl.RenderTexture2D
 	mainMenu       mainMenu
-	Music          map[string]rl.Music
+	combat         *Combat
 	cutscene       *Cutscene
-	transitionTime float32
+	Music          map[string]rl.Music
 	currentMusic   rl.Music
-	stateChange    bool
 }
 
 func NewGame() *Game {
@@ -50,7 +51,7 @@ func NewGame() *Game {
 	uiFonts := make(map[string]rl.Font)
 
 	// Load dungeon image and model
-	dungeonImage := rl.LoadImage("./src/levels/dungeon_1.png")
+	dungeonImage := rl.LoadImage("./src/levels/dungeon_2.png")
 	DungeonImages["dungeon_1"] = dungeonImage
 	dungeonMesh := rl.GenMeshCubicmap(*dungeonImage, rl.NewVector3(5, 5, 5))
 	dungeonTexture := rl.LoadTexture("./src/tiles/dungeon_tileset.png")
@@ -353,5 +354,21 @@ func (g *Game) drawCutscene() {
 }
 
 func (g *Game) drawCombat() {
-	// Placeholder for combat drawing logic
+	var dest rl.Rectangle
+	dest = getDestinationRectangle(&g.rt)
+	rl.BeginTextureMode(g.rt)
+	rl.ClearBackground(rl.Black)
+
+	rl.EndTextureMode()
+	rl.BeginDrawing()
+	rl.ClearBackground(rl.Black)
+	rl.DrawTexturePro(
+		g.rt.Texture,
+		rl.NewRectangle(0, 0, float32(g.rt.Texture.Width), -float32(g.rt.Texture.Height)),
+		dest,
+		rl.NewVector2(0, 0),
+		0.0,
+		rl.White,
+	)
+	rl.EndDrawing()
 }
