@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math/rand"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -38,13 +40,14 @@ type Combat struct {
 	*/
 }
 
-func NewCombat(enemies ...Enemy) *Combat {
+func NewCombat(player *Player, enemies ...Enemy) *Combat {
 
 	c := Combat{
 		playerTurn: true,
 		waitTime:   4.0,
 		enemies:    enemies,
 		threshold:  1000,
+		player:     player,
 	}
 
 	c.initiatives = make([]int, len(enemies)+1)
@@ -52,9 +55,20 @@ func NewCombat(enemies ...Enemy) *Combat {
 	c.initiatives[0] = c.player.Character.Speed + int(rl.GetRandomValue(1, 20))
 	// roll initiative for enemies
 
+	c.SpawnEnemies()
+
 	c.timeToTurn = make([]int, len(enemies)+1)
 
 	return &c
+}
+
+func (c *Combat) SpawnEnemies() {
+	// spawn enemies on screen
+	numOfEnemies := rand.Intn(2) + 1
+	for i := 0; i < numOfEnemies; i++ {
+		enemy := NewEnemy(true, -1)
+		c.enemies = append(c.enemies, enemy)
+	}
 }
 
 func (c *Combat) Draw() {
@@ -161,8 +175,67 @@ func (c *Combat) setTimeToTurn() {
 }
 
 func (c *Combat) setInitiatives() {
-
+	// roll initiative for enemies
+	for i := range c.enemies {
+		c.initiatives[i+1] = c.enemies[i].Speed + int(rl.GetRandomValue(1, 20))
+	}
 }
 
 func (c *Combat) getNextTurn() {
+	// find next turn
+	c.nextTurn = 0
+	for i := 1; i < len(c.timeToTurn); i++ {
+		if c.timeToTurn[i] < c.timeToTurn[c.nextTurn] {
+			c.nextTurn = i
+		}
+	}
+}
+
+func (c *Combat) DevUpdate() {
+	if rl.IsKeyPressed(rl.KeyF1) {
+		c.state = COMBAT_VICTORY_WIN
+	}
+	if rl.IsKeyPressed(rl.KeyF2) {
+		c.state = COMBAT_VICTORY_FLEE
+	}
+	if rl.IsKeyPressed(rl.KeyF3) {
+		c.state = COMBAT_DEFEAT
+	}
+}
+
+func (c *Combat) DevDraw() {
+	var dest rl.Rectangle
+	rt := rl.RenderTexture2D{
+		Texture: rl.Texture2D{
+			Width:  RenderWidth,
+			Height: RenderHeight,
+		},
+	}
+	dest = getDestinationRectangle(&rt)
+	rl.BeginTextureMode(rt)
+	rl.ClearBackground(rl.Black)
+
+	rl.DrawText("F1: Victory", 10, 10, 10, rl.White)
+	rl.DrawText("F2: Flee", 10, 25, 10, rl.White)
+	rl.DrawText("F3: Defeat", 10, 40, 10, rl.White)
+	for i, enem := range c.enemies {
+		rl.DrawTexture(
+			enem.Texture,
+			50+int32(i)*100,
+			RenderHeight/2-50,
+			rl.White,
+		)
+	}
+	rl.EndTextureMode()
+	rl.BeginDrawing()
+	rl.ClearBackground(rl.Black)
+	rl.DrawTexturePro(
+		rt.Texture,
+		rl.NewRectangle(0, 0, float32(rt.Texture.Width), -float32(rt.Texture.Height)),
+		dest,
+		rl.NewVector2(0, 0),
+		0.0,
+		rl.White,
+	)
+	rl.EndDrawing()
 }

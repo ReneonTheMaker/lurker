@@ -51,7 +51,7 @@ func NewGame() *Game {
 	uiFonts := make(map[string]rl.Font)
 
 	// Load dungeon image and model
-	dungeonImage := rl.LoadImage("./src/levels/dungeon_2.png")
+	dungeonImage := rl.LoadImage("./src/levels/dungeon_1.png")
 	DungeonImages["dungeon_1"] = dungeonImage
 	dungeonMesh := rl.GenMeshCubicmap(*dungeonImage, rl.NewVector3(5, 5, 5))
 	dungeonTexture := rl.LoadTexture("./src/tiles/dungeon_tileset.png")
@@ -100,6 +100,8 @@ func NewGame() *Game {
 	g.Player.SetCollisions(g.DungeonImages["dungeon_1"])
 
 	rl.UnloadImage(dungeonImage)
+
+	g.combat = NewCombat(g.Player)
 
 	return &g
 }
@@ -163,6 +165,8 @@ func (g *Game) Update() {
 			g.stateChange = true
 		}
 		g.cutscene.Update()
+	case STATE_COMBAT:
+		g.combat.DevUpdate()
 	}
 }
 
@@ -250,7 +254,7 @@ func (g *Game) Draw() {
 	case STATE_OPENING_CUTSCENE:
 		g.drawCutscene()
 	case STATE_COMBAT:
-		// g.drawCombat()
+		g.combat.DevDraw()
 	case STATE_INVENTORY:
 	case STATE_CHARACTER_SCREEN:
 	case STATE_GAME_OVER:
